@@ -1,4 +1,7 @@
+using IrrigationApi.BackgroundServices;
+using IrrigationApi.Configurations;
 using IrrigationApi.Data;
+using IrrigationApi.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,6 +16,20 @@ builder.Services.AddDbContext<IrrigationContext>(options =>
         .UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
         .UseSnakeCaseNamingConvention()
 );
+
+string? connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+if(string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+}
+
+builder.Services.AddSingleton<IDbConnectionFactory>(sp =>
+    new NpgsqlDataSourceFactory(connectionString));
+builder.Services.AddSingleton<ISensorReadingService, SensorReadingService>();
+
+builder.Services.Configure<MqttSettings>(builder.Configuration.GetSection("MqttSettings"));
+builder.Services.AddHostedService<MqttClientService>();
 
 builder.Services.AddOpenApi();
 
