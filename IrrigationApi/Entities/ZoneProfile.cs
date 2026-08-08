@@ -1,6 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
-
-namespace IrrigationApi.Entities
+﻿namespace IrrigationApi.Entities
 {
     public class ZoneProfile
     {
@@ -15,5 +13,7 @@ namespace IrrigationApi.Entities
         public decimal MinMoisture { get; set; }
 
         public decimal MaxMoisture { get; set; }
+
+        public int ConfigVersion { get; set; }
     }
 }

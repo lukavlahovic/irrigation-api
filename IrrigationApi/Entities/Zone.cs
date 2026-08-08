@@ -13,5 +13,7 @@
         public bool HasMoistureSensor { get; set; }
 
         public bool HasTempHumiditySensor { get; set; }
+
+        public int? LastReportedConfigVersion { get; set; }
     }
 }

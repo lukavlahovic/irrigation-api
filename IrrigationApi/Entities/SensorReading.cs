@@ -1,6 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
-
-namespace IrrigationApi.Entities
+﻿namespace IrrigationApi.Entities
 {
     public class SensorReading
     {

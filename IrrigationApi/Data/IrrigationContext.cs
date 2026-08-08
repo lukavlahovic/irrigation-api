@@ -67,24 +67,22 @@ namespace IrrigationApi.Data
                 .HasPrecision(5, 2);
 
             modelBuilder.Entity<IrrigationEvent>()
+                .Property(ie => ie.TriggerMoisture)
+                .HasPrecision(5, 2);
+
+            modelBuilder.Entity<IrrigationEvent>()
+                .Property(ie => ie.StartTriggerReason)
+                .HasConversion<string>();
+
+            modelBuilder.Entity<IrrigationEvent>()
+                .Property(ie => ie.StopTriggerReason)
+                .HasConversion<string>();
+
+            modelBuilder.Entity<IrrigationEvent>()
                 .HasOne(ie => ie.Zone)
                 .WithMany()
                 .HasForeignKey(ie => ie.ZoneId)
                 .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<IrrigationEvent>()
-                .HasOne(ie => ie.ReadingStart)
-                .WithMany()
-                .HasForeignKey(ie => ie.ReadingIdStart)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            modelBuilder.Entity<IrrigationEvent>()
-                .HasOne(ie => ie.ReadingEnd)
-                .WithMany()
-                .HasForeignKey(ie => ie.ReadingIdEnd)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<SensorReading>()
                 .HasIndex(sr => new { sr.ZoneId, sr.RecordedAt })
