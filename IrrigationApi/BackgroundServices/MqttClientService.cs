@@ -1,5 +1,6 @@
 ﻿using IrrigationApi.Configurations;
-using IrrigationApi.Services;
+using IrrigationApi.Handlers;
+using IrrigationApi.Routers;
 using Microsoft.Extensions.Options;
 using MQTTnet;
 
@@ -9,11 +10,10 @@ namespace IrrigationApi.BackgroundServices
     {
         private readonly ILogger<MqttClientService> _logger;
         private readonly IMqttClient _client;
-        private readonly ISensorReadingService _sensorReadingService;
+        private readonly IMqttMessageRouter _mqttMessageRouter;
 
         private readonly MqttClientOptions _clientOptions;
         private readonly MqttClientSubscribeOptions _subOptions;
-        private readonly string _topic;
 
         private readonly int[] _exponentialBackoff = [1, 2, 4, 8, 16, 32];
 
@@ -21,11 +21,10 @@ namespace IrrigationApi.BackgroundServices
 
         private CancellationToken _stoppingToken = default;
 
-        public MqttClientService(IOptions<MqttSettings> options, ILogger<MqttClientService> logger, ISensorReadingService sensorReadingService)
+        public MqttClientService(IOptions<MqttSettings> options, ILogger<MqttClientService> logger, IMqttMessageRouter mqttMessageRouter)
         {
             _logger = logger;
-            _sensorReadingService = sensorReadingService;
-            _topic = options.Value.Topic;
+            _mqttMessageRouter = mqttMessageRouter;
 
             var factory = new MqttClientFactory();
             _client = factory.CreateMqttClient();
@@ -34,13 +33,18 @@ namespace IrrigationApi.BackgroundServices
                 .WithClientId(options.Value.ClientId)
                 .WithCleanSession(false)
                 .Build();
-            _subOptions = factory.CreateSubscribeOptionsBuilder()
-                .WithTopicFilter(f =>
+
+            var builder = factory.CreateSubscribeOptionsBuilder();
+            foreach (var topicFilter in _mqttMessageRouter.TopicFilters)
+            {
+                builder.WithTopicFilter(f =>
                 {
-                    f.WithTopic(_topic);
+                    f.WithTopic(topicFilter);
                     f.WithAtLeastOnceQoS();
-                })
-                .Build();
+                });
+            }
+                
+            _subOptions = builder.Build();
             _client.ApplicationMessageReceivedAsync += HandleMessageAsync;
         }
 
@@ -68,16 +72,39 @@ namespace IrrigationApi.BackgroundServices
 
         public async Task HandleMessageAsync(MqttApplicationMessageReceivedEventArgs e)
         {
-            var payload = e.ApplicationMessage.ConvertPayloadToString();
-            _logger.LogDebug("Received on {topic}: {payload}", e.ApplicationMessage.Topic, payload);
+            e.AutoAcknowledge = false; // Disable auto-acknowledgment to allow for manual acknowledgment after processing
+
+            var topic = e.ApplicationMessage.Topic;
+            var shouldAcknowledge = true;
 
             try
             {
-                await _sensorReadingService.ParseAndStoreAsync(e.ApplicationMessage.Topic, payload, _stoppingToken);
+                var payload = e.ApplicationMessage.ConvertPayloadToString();
+                _logger.LogDebug("Received on {topic}: {payload}", topic, payload);
+
+                var outcome = await _mqttMessageRouter.RouteMessageAsync(topic, payload, _stoppingToken);
+
+                shouldAcknowledge = outcome != MessageOutcome.TransientFailure;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to parse and store sensor reading for topic {topic}", e.ApplicationMessage.Topic);
+                _logger.LogError(ex, "Unexpected error occurred while routing message for topic {topic}", topic);
+                await e.AcknowledgeAsync(CancellationToken.None);
+            }
+
+            // Don't acknowledge the message if it resulted in a transient failure, allowing for re-delivery
+            if (!shouldAcknowledge)
+            {
+                return;
+            }
+
+            try
+            {
+                await e.AcknowledgeAsync(CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to acknowledge message for topic {topic}", topic);
             }
         }
 

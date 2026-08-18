@@ -1,7 +1,9 @@
-﻿namespace IrrigationApi.Services
+﻿using IrrigationApi.Handlers;
+
+namespace IrrigationApi.Services
 {
     public interface ISensorReadingService
     {
-        Task ParseAndStoreAsync(string topic, string payload, CancellationToken cancellationToken);
+        Task<MessageOutcome> ParseAndStoreAsync(string topic, string payload, CancellationToken cancellationToken);
     }
 }

@@ -1,6 +1,8 @@
 using IrrigationApi.BackgroundServices;
 using IrrigationApi.Configurations;
 using IrrigationApi.Data;
+using IrrigationApi.Handlers;
+using IrrigationApi.Routers;
 using IrrigationApi.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,6 +29,12 @@ if(string.IsNullOrWhiteSpace(connectionString))
 builder.Services.AddSingleton<IDbConnectionFactory>(sp =>
     new NpgsqlDataSourceFactory(connectionString));
 builder.Services.AddSingleton<ISensorReadingService, SensorReadingService>();
+
+// Add MQTT handlers for topics
+// Add more handlers here as needed
+builder.Services.AddSingleton<IMqttMessageHandler, SensorReadingHandler>();
+
+builder.Services.AddSingleton<IMqttMessageRouter, MqttMessageRouter>();
 
 builder.Services.Configure<MqttSettings>(builder.Configuration.GetSection("MqttSettings"));
 builder.Services.AddHostedService<MqttClientService>();
