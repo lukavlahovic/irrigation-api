@@ -84,9 +84,17 @@ namespace IrrigationApi.Data
                 .HasForeignKey(ie => ie.ZoneId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            // There can still be a duplicate reading if device does not send the timestamp
             modelBuilder.Entity<SensorReading>()
                 .HasIndex(sr => new { sr.ZoneId, sr.RecordedAt })
+                .IsUnique()
                 .HasDatabaseName("ix_sensor_readings_zone_id_recorded_at");
+
+
+            modelBuilder.Entity<IrrigationEvent>()
+                .HasIndex(ie => new { ie.ZoneId, ie.StartedAt })
+                .IsUnique()
+                .HasDatabaseName("ix_irrigation_events_zone_id_started_at");
         }
     }
 }

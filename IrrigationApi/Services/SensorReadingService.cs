@@ -120,6 +120,11 @@ namespace IrrigationApi.Services
                         _logger.LogWarning("Data exception occurred while storing sensor reading for topic: {Topic}. Error: {ErrorMessage}", topic, e.MessageText);
                         return MessageOutcome.PermanentFailure;
                     case "23": // Integrity constraint violation
+                        if (e.SqlState == "23505")
+                        {
+                            _logger.LogDebug("Reading already stored for topic: {Topic} (duplicate delivery)", topic);
+                            return MessageOutcome.Success;
+                        }
                         _logger.LogWarning("Integrity constraint violation occurred while storing sensor reading for topic: {Topic}. Error: {ErrorMessage}", topic, e.MessageText);
                         return MessageOutcome.PermanentFailure;
                     case "08": // Connection exception
